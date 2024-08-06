@@ -95,6 +95,7 @@ name = "tf_cpd"
 version = "0.1.0"
 dependencies = [
  "csv",
+ "serde",
 ]
 
 [[package]]
