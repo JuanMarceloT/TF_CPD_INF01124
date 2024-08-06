@@ -1,12 +1,10 @@
 use serde::de::DeserializeOwned;
-use serde::{Deserialize};
+use serde::Deserialize;
 use std::error::Error;
-use std::fs::{File};
-use std::io::{BufReader};
+use std::fs::File;
+use std::io::BufReader;
 use std::path::Path;
 use std::time::{Duration, Instant};
-
-
 
 #[derive(Debug, Clone, Deserialize)]
 #[allow(dead_code)]
@@ -14,7 +12,7 @@ struct Player {
     sofifa_id: u32,
     short_name: String,
     long_name: String,
-    player_positions: String, 
+    player_positions: String,
     nationality: String,
     club_name: String,
     league_name: String,
@@ -27,7 +25,6 @@ struct Star {
     sofifa_id: u32,
     rating: f32,
 }
-
 
 trait Identifiable {
     fn id(&self) -> i32;
@@ -48,32 +45,13 @@ impl Identifiable for Star {
 #[allow(dead_code)]
 #[allow(unused_variables)]
 fn main() {
-
-    let modulo   = 2000;
+    let modulo = 2000;
     let mut hash_table: Vec<Vec<Star>> = initialize_hash_table(modulo);
-
 
     let x = read_csv("rating.csv", |record| {
         //println!("{:?}", record);
         insert(record, modulo, &mut hash_table);
     });
-
-    let player = vec![247202, 254155, 257697, 257697, 158023, 257727, 186941, 228101, 243758, 203458];
-    
-
-    player.iter().for_each(|x| {
-        match search(*x, modulo, &hash_table) {
-            Some(player) => {
-                println!("{:?}", player.rating);
-            },
-            None => {
-                // Optional: Uncomment the line below to print messages for not found players
-                // println!("{:?} NÃO ENCONTRADO", x);
-            }
-        }
-    });
-    
-
 }
 
 fn initialize_hash_table<T: Clone>(modulo: usize) -> Vec<Vec<T>> {
@@ -112,7 +90,6 @@ where
     }
     Ok(())
 }
-
 
 #[allow(dead_code)]
 fn measure_time<F>(func: F) -> Duration
