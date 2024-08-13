@@ -6,6 +6,8 @@ use std::io::BufReader;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
+mod hash_table;
+
 #[derive(Debug, Clone, Deserialize)]
 #[allow(dead_code)]
 struct Player {
@@ -94,14 +96,14 @@ impl AddRating<RatingPlayer> for User {
 #[allow(unused_variables)]
 fn main() {
     let modulo = 2000;
-    let mut rating_table: Vec<Vec<RatingPlayer>> = initialize_hash_table(modulo);
-    let mut players_table: Vec<Vec<Player>> = initialize_hash_table(modulo);
-    let mut user_table: Vec<Vec<User>> = initialize_hash_table(modulo);
+    let mut rating_table: hash_table::HashMap<u32, RatingPlayer> = hash_table::HashMap::new(modulo);
+    let mut players_table: hash_table::HashMap<i32, Player> = hash_table::HashMap::new(modulo);
+    let mut user_table: hash_table::HashMap<i32, User> = hash_table::HashMap::new(modulo);
 
 
     let x = read_csv("players.csv", |record: Player| {
         //println!("{:?}", record);
-        insert(record.clone(), modulo, &mut players_table);
+        players_table.insert(record.id(), record.clone());
 
         let temp = RatingPlayer{
             sofifa_id: record.sofifa_id,
@@ -109,19 +111,20 @@ fn main() {
             num_ratings: 0,
         };
 
-        insert(temp, modulo, &mut rating_table);
+        rating_table.insert(record.sofifa_id, temp);
+
     });
 
     let x = read_csv("minirating.csv", |record: RatingFile| {
         //println!("{:?}", record);
-        match search(record.id(), modulo, &mut user_table) {
+        match user_table.search(&record.id()) {
             Some(user) => {
                 user.ratings.push(RatingPlayer{
                     sofifa_id: record.sofifa_id,
                     rating_sum: record.rating,
                     num_ratings: 1,
                 });
-                println!("{:?}", user.ratings)
+                //println!("{:?}", user.ratings)
             }
             None => {
                 let user = User {
@@ -132,39 +135,20 @@ fn main() {
                         num_ratings: 1,
                     }],
                 };
-                insert(user.clone(), modulo, &mut user_table);
+                user_table.insert(user.user_id, user.clone());
                 //println!("{:?}", user);
             }
         }
 
-        let mut rating = search(record.sofifa_id.try_into().unwrap(), modulo, &mut rating_table);
+        let mut rating = rating_table.search(&record.sofifa_id);
         rating.as_mut().unwrap().add_rating(record.rating);
         //println!("{:?}", rating);
     });
 
 
-    // println!("{:?}\n", search(158023, modulo, &mut players_table).unwrap());
-    // println!("{:?}\n", search(158023, modulo, &mut rating_table).unwrap());
+    // println!("{:?}\n", players_table.search(&158023));
+    // println!("{:?}\n", rating_table.search(&158023));
     
-}
-
-fn initialize_hash_table<T: Clone>(modulo: usize) -> Vec<Vec<T>> {
-    vec![Vec::new(); modulo]
-}
-
-fn insert<T: Identifiable>(item: T, modulo: usize, hash_table: &mut [Vec<T>]) {
-    let index = (item.id() as usize) % modulo;
-    hash_table[index].push(item);
-}
-fn search<T: Identifiable + Clone>(id: i32, modulo: usize, hash_table: &mut [Vec<T>]) -> Option<&mut T> {
-    let index = (id as usize) % modulo;
-
-    for item in &mut hash_table[index] {
-        if item.id() == id {
-            return Some(item);
-        }
-    }
-    None
 }
 
 fn read_csv<P, F, T>(filename: P, mut func: F) -> Result<(), Box<dyn Error>>
