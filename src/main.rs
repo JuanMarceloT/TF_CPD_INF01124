@@ -7,6 +7,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 mod hash_table;
+mod trie;
 
 #[derive(Debug, Clone, Deserialize)]
 #[allow(dead_code)]

@@ -1,6 +1,6 @@
 
 
-trait Identifiable {
+pub trait Identifiable {
     fn id(&self) -> i32;
 }
 
