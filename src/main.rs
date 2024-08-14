@@ -38,6 +38,14 @@ struct RatingPlayer {
     num_ratings: u32,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
+struct Tags {
+    user_id: u32,
+    sofifa_id: u32,
+    tag: String,
+}
+
 
 
 #[derive(Debug, Clone, Deserialize)]
@@ -102,6 +110,7 @@ fn main() {
     let mut user_table: hash_table::HashMap<u32, User> = hash_table::HashMap::new(modulo);
 
     let mut name_index = trie::Trie::new();
+    let mut tag_player = trie::Trie::new();
 
 
     let x = read_csv("players.csv", |record: Player| {
@@ -120,14 +129,14 @@ fn main() {
 
     let x = read_csv("minirating.csv", |record: RatingFile| {
         //println!("{:?}", record);
-        match user_table.search(&record.id()) {
+        match user_table.search(&record.user_id) {
             Some(user) => {
                 user.ratings.push(RatingPlayer{
                     sofifa_id: record.sofifa_id,
                     rating_sum: record.rating,
                     num_ratings: 1,
                 });
-                //println!("{:?}", user.ratings)
+               // println!("{:?}\n\n", user)
             }
             None => {
                 let user = User {
@@ -147,24 +156,11 @@ fn main() {
         rating.as_mut().unwrap().add_rating(record.rating);
         //println!("{:?}", rating);
     });
-
-
-    // println!("{:?}\n", players_table.search(&158023));
-    // println!("{:?}\n", rating_table.search(&158023));
-
-    //  for name in name_index.get_words_starting_with("lionel"){
-    //     //  println!("{:?}\n", name_index.get_id(&name));
-    //     match name_index.get_id(&name) {
-    //         Some(n) => {
-    //             println!("{:?}\n", players_table.search(&n));
-    //             println!("{:?}\n", rating_table.search(&n));
-    //         }
-    //         None => {
-    //             println!("Name");
-    //         }
-    //     }
-    //  }
     
+    let x = read_csv("tags.csv", |record: Tags| {
+        //println!("{:?}", record.tag);
+        tag_player.insert_with_id(&record.tag, record.sofifa_id);
+    });
     
 }
 

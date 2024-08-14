@@ -165,7 +165,7 @@ impl Trie {
 
     pub fn get_words_starting_with(&mut self, prefix: &str) -> Vec<String> {
         let mut node = self.root.clone();
-            for ch in prefix.chars() {
+            for ch in prefix.to_lowercase().chars() {
                 match node.children.get(&ch) {
                     Some(next_node) => node = next_node.clone(),
                     None => return Vec::new(),
