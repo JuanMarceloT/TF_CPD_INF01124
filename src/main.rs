@@ -24,7 +24,7 @@ struct Player {
 #[derive(Debug, Clone, Deserialize)]
 #[allow(dead_code)]
 struct RatingFile {
-    user_id: i32,
+    user_id: u32,
     sofifa_id: u32,
     rating: f32,
 }
@@ -43,36 +43,36 @@ struct RatingPlayer {
 #[derive(Debug, Clone, Deserialize)]
 #[allow(dead_code)]
 struct User {
-    user_id: i32,
+    user_id: u32,
     ratings: Vec<RatingPlayer>
 }
 
 
 trait Identifiable {
-    fn id(&self) -> i32;
+    fn id(&self) -> u32;
 }
 
 impl Identifiable for Player {
-    fn id(&self) -> i32 {
-        self.sofifa_id as i32
+    fn id(&self) -> u32 {
+        self.sofifa_id as u32
     }
 }
 
 impl Identifiable for User {
-    fn id(&self) -> i32 {
-        self.user_id as i32
+    fn id(&self) -> u32 {
+        self.user_id as u32
     }
 }
 
 impl Identifiable for RatingFile {
-    fn id(&self) -> i32 {
-        self.sofifa_id as i32
+    fn id(&self) -> u32 {
+        self.sofifa_id as u32
     }
 }
 
 impl Identifiable for RatingPlayer {
-    fn id(&self) -> i32 {
-        self.sofifa_id as i32
+    fn id(&self) -> u32 {
+        self.sofifa_id as u32
     }
 }
 
@@ -98,8 +98,10 @@ impl AddRating<RatingPlayer> for User {
 fn main() {
     let modulo = 2000;
     let mut rating_table: hash_table::HashMap<u32, RatingPlayer> = hash_table::HashMap::new(modulo);
-    let mut players_table: hash_table::HashMap<i32, Player> = hash_table::HashMap::new(modulo);
-    let mut user_table: hash_table::HashMap<i32, User> = hash_table::HashMap::new(modulo);
+    let mut players_table: hash_table::HashMap<u32, Player> = hash_table::HashMap::new(modulo);
+    let mut user_table: hash_table::HashMap<u32, User> = hash_table::HashMap::new(modulo);
+
+    let mut name_index = trie::Trie::new();
 
 
     let x = read_csv("players.csv", |record: Player| {
@@ -113,7 +115,7 @@ fn main() {
         };
 
         rating_table.insert(record.sofifa_id, temp);
-
+        name_index.insert_with_id(&record.long_name, record.id());
     });
 
     let x = read_csv("minirating.csv", |record: RatingFile| {
@@ -149,6 +151,20 @@ fn main() {
 
     // println!("{:?}\n", players_table.search(&158023));
     // println!("{:?}\n", rating_table.search(&158023));
+
+    //  for name in name_index.get_words_starting_with("lionel"){
+    //     //  println!("{:?}\n", name_index.get_id(&name));
+    //     match name_index.get_id(&name) {
+    //         Some(n) => {
+    //             println!("{:?}\n", players_table.search(&n));
+    //             println!("{:?}\n", rating_table.search(&n));
+    //         }
+    //         None => {
+    //             println!("Name");
+    //         }
+    //     }
+    //  }
+    
     
 }
 

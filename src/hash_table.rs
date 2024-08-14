@@ -1,19 +1,19 @@
 
 
 pub trait Identifiable {
-    fn id(&self) -> i32;
+    fn id(&self) -> u32;
 }
 
 
 impl Identifiable for i32 {
-    fn id(&self) -> i32 {
-        *self
+    fn id(&self) -> u32 {
+        *self as u32
     }
 }
 
 impl Identifiable for u32 {
-    fn id(&self) -> i32 {
-        *self as i32
+    fn id(&self) -> u32 {
+        *self 
     }
 }
 
