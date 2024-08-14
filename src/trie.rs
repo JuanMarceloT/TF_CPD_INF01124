@@ -56,12 +56,11 @@ impl<K:Eq + Identifiable, V> HashMap <K, V> {
 }
 
 
-
 #[derive(Default, Debug, Clone)]
 struct TrieNode {
     children: HashMap<char, TrieNode>,
     is_end_of_word: bool,
-    has_id: bool,
+    has_id: Vec<u32>,
 }
 
 impl TrieNode {
@@ -69,7 +68,7 @@ impl TrieNode {
         TrieNode {
             children: HashMap::new(26),
             is_end_of_word: false,
-            has_id: false
+            has_id: Vec::new(),
         }
     }
 }
@@ -98,14 +97,15 @@ impl Trie {
         }
         node.is_end_of_word = true;
         if let Some(c) = char::from_u32(id) {
-            node.children.insert(c, TrieNode::new());
-            node = node.children.get(&c).unwrap();
-            node.has_id = true;
+            // println!("{}", c as u32);
+            node.has_id.push(c as u32);
+            //println!("{:?}", node.has_id);
         }
     }
 
     pub fn insert(&mut self, word: &str) {
         let mut node = &mut self.root;
+        
         let word_lower_case = word.to_lowercase();
 
         for ch in word_lower_case.chars() {
@@ -118,6 +118,7 @@ impl Trie {
     }
     pub fn search(&mut self, word: &str) -> bool {
         let mut node = &mut self.root;
+
         let word_lower_case = word.to_lowercase();
 
         for ch in word_lower_case.chars() {
@@ -130,8 +131,9 @@ impl Trie {
         node.is_end_of_word
     }
 
-    pub fn get_id(&mut self, word: &str) -> Option<u32> {
+    pub fn get_id(&mut self, word: &str) -> Option<Vec<u32>> {
         let mut node = &mut self.root;
+
         let word_lower_case = word.to_lowercase();
 
         for ch in word_lower_case.chars() {
@@ -142,12 +144,8 @@ impl Trie {
         }
 
         
-        if node.is_end_of_word {
-            for item in node.children.buckets.iter() {
-                if !item.is_empty() && item[0].1.has_id {
-                    return Some(item[0].0 as u32);
-                }
-            }
+        if node.is_end_of_word && !node.has_id.is_empty() {
+            return  Some(node.has_id.clone());
         }
         
         None
@@ -156,10 +154,7 @@ impl Trie {
 
     pub fn starts_with(&mut self, prefix: &str) -> bool {
         let mut node = &mut self.root;
-
-        let prefix_lower_case = prefix.to_lowercase();
-
-        for ch in prefix_lower_case.chars() {
+        for ch in prefix.to_lowercase().chars() {
             match node.children.get(&ch) {
                 Some(next_node) => node = next_node,
                 None => return false,
@@ -170,9 +165,7 @@ impl Trie {
 
     pub fn get_words_starting_with(&mut self, prefix: &str) -> Vec<String> {
         let mut node = self.root.clone();
-            let prefix_lower_case = prefix.to_lowercase();
-
-            for ch in prefix_lower_case.chars() {
+            for ch in prefix.chars() {
                 match node.children.get(&ch) {
                     Some(next_node) => node = next_node.clone(),
                     None => return Vec::new(),
@@ -205,6 +198,7 @@ impl Trie {
 }
 
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -230,9 +224,9 @@ mod tests {
         let mut trie = Trie::new();
         
         // Test insertion
-        trie.insert("helLo");
-        trie.insert("hell");
-        trie.insert("helicopter");
+        trie.insert("hello");
+        trie.insert("hELl");
+        trie.insert("heLIcopter");
         
         // Test search
         assert!(trie.search("hello"));
@@ -247,13 +241,13 @@ mod tests {
         let mut trie = Trie::new();
         
         // Test insertion with ID
-        trie.insert_with_id("ApPle", 65);
-        trie.insert_with_id("banana", 66);
+        trie.insert_with_id("aPPle", 65);
+        trie.insert_with_id("baNAna", 66);
         trie.insert("cherry");
         
         // Test get_id
-        assert_eq!(trie.get_id("apple"), Some(65));
-        assert_eq!(trie.get_id("banana"), Some(66));
+        assert_eq!(trie.get_id("apple"), Some(vec![65]));
+        assert_eq!(trie.get_id("banana"), Some(vec![66]));
         assert_eq!(trie.get_id("cherry"), None); // no id
     }
 
@@ -262,13 +256,13 @@ mod tests {
         let mut trie = Trie::new();
         
         // Test insertion
-        trie.insert("aPPle");
-        trie.insert("aPp");
+        trie.insert("apple");
+        trie.insert("app");
         trie.insert("banana");
         
         // Test starts_with
         assert!(trie.starts_with("app"));
-        assert!(trie.starts_with("banana"));
+        assert!(trie.starts_with("baNana"));
         assert!(!trie.starts_with("bananas"));
         assert!(!trie.starts_with("bat"));
     }
@@ -278,10 +272,10 @@ mod tests {
         let mut trie = Trie::new();
         
         // Test insertion
-        trie.insert("apPle");
-        trie.insert("app");
-        trie.insert("BAnAna");
-        trie.insert("bAt");
+        trie.insert("AppLe");
+        trie.insert("aPp");
+        trie.insert("bAnAna");
+        trie.insert("baT");
         
         // Test get_words_starting_with
         let words_with_app = trie.get_words_starting_with("app");
