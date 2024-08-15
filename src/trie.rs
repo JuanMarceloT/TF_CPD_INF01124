@@ -98,7 +98,9 @@ impl Trie {
         node.is_end_of_word = true;
         if let Some(c) = char::from_u32(id) {
             // println!("{}", c as u32);
-            node.has_id.push(c as u32);
+            if !node.has_id.contains(&(c as u32)) {
+                node.has_id.push(c as u32);
+            }
             //println!("{:?}", node.has_id);
         }
     }
