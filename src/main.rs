@@ -8,6 +8,7 @@ use std::io::BufReader;
 use std::io::{stdin, stdout, Write};
 use std::path::Path;
 use std::time::{Duration, Instant};
+use regex::Regex;
 
 mod hash_table;
 mod trie;
@@ -212,8 +213,8 @@ fn main() {
         name_index.insert_with_id(&record.long_name, record.id());
     });
 
-    let x = read_csv("rating.csv", |record: RatingFile| {
-        //println!("{:?}", record);
+    let x = read_csv("test_rating.csv", |record: RatingFile| {
+        // println!("{:?}", record);
         match user_table.search(&record.user_id) {
             Some(user) => {
                 user.ratings.push(RatingPlayer {
@@ -279,7 +280,8 @@ fn main() {
         if let Some('\r') = s.chars().next_back() {
             s.pop();
         }
-        let words: Vec<&str> = s.split_whitespace().collect();
+        let words: Vec<&str> = parse_string(&s);
+        // println!("{:?}", words);
 
         if words.len() < 2 {
             println!("Insufficient arguments");
@@ -305,6 +307,17 @@ fn main() {
                     if id.is_ok() {
                         // println!("{}", id.unwrap());
 
+                        let mut table = Table::new();
+
+                        table.add_row(Row::new(vec![
+                            Cell::new("sofifa_id"),
+                            Cell::new("short_name"),
+                            Cell::new("long_name"),
+                            Cell::new("global_rating"),
+                            Cell::new("rating"),
+                            Cell::new("count"),
+                        ]));
+
                         let user_rating = &mut user_table.search(&id.unwrap()).unwrap().ratings;
 
                         user_rating.sort_by(|a, b| {
@@ -326,26 +339,28 @@ fn main() {
                         //*user_rating = user_rating[0..19].to_vec();
 
                         user_rating.sort_by(|a, b| {
-
                             let global_rating_info_a =
-                                    rating_table.search(&a.sofifa_id).unwrap().clone();
+                                rating_table.search(&a.sofifa_id).unwrap().clone();
 
                             let global_rating_info_b =
-                                    rating_table.search(&b.sofifa_id).unwrap().clone();
+                                rating_table.search(&b.sofifa_id).unwrap().clone();
 
-                            let user_rating_a = a.rating_sum / (a.num_ratings as f32); 
-                            
-                            let user_rating_b = b.rating_sum / (b.num_ratings as f32); 
+                            let user_rating_a = a.rating_sum / (a.num_ratings as f32);
 
+                            let user_rating_b = b.rating_sum / (b.num_ratings as f32);
 
                             let avg_a = if global_rating_info_a.num_ratings > 0 {
-                                (global_rating_info_a.rating_sum / global_rating_info_a.num_ratings as f32) + user_rating_a * 10.0
+                                (global_rating_info_a.rating_sum
+                                    / global_rating_info_a.num_ratings as f32)
+                                    + user_rating_a * 10.0
                             } else {
                                 0.0 // for players with no ratings
                             };
 
                             let avg_b = if global_rating_info_b.num_ratings > 0 {
-                                (global_rating_info_b.rating_sum / global_rating_info_b.num_ratings as f32) + user_rating_b * 10.0
+                                (global_rating_info_b.rating_sum
+                                    / global_rating_info_b.num_ratings as f32)
+                                    + user_rating_b * 10.0
                             } else {
                                 0.0
                             };
@@ -367,24 +382,44 @@ fn main() {
                                 let global_rating = global_rating_info.rating_sum
                                     / global_rating_info.num_ratings as f32;
 
-                                println!(
-                                    "{:?} {:?} {:?} {:?} {:?} {:?}",
-                                    player_infos.sofifa_id,
-                                    player_infos.short_name,
-                                    player_infos.long_name,
-                                    global_rating,
-                                    global_rating_info.num_ratings,
-                                    rating
-                                );
-                                index+=1;
+                                table.add_row(Row::new(vec![
+                                    Cell::new(&player_infos.sofifa_id.to_string()),
+                                    Cell::new(&player_infos.short_name),
+                                    Cell::new(&player_infos.long_name),
+                                    Cell::new(&global_rating.to_string()),
+                                    Cell::new(&rating.to_string()),
+                                    Cell::new(&global_rating_info.num_ratings.to_string()),
+                                ]));
+
+                                // println!(
+                                //     "{:?} {:?} {:?} {:?} {:?} {:?}",
+                                //     player_infos.sofifa_id,
+                                //     player_infos.short_name,
+                                //     player_infos.long_name,
+                                //     global_rating,
+                                //     global_rating_info.num_ratings,
+                                //     rating
+                                // );
+                                index += 1;
                             }
                         }
+                        table.printstd();
                     }
                 }
                 "tags" => {
-                    for tag in 1..words.len() {
-                        println!("{}", remove_outer_quotes(words[tag]));
+                    let mut players: Vec<_> = tag_player
+                        .get_id(&remove_outer_quotes(words[1]))
+                        .unwrap_or_default();
+                    
+                    for tag in 2..words.len() {
+                        if let Some(search) = tag_player.get_id(&remove_outer_quotes(words[tag])) {
+                            players.retain(|id| search.contains(id));
+                        } else {
+                            players.clear();
+                            break;
+                        }
                     }
+                    println!("{:?}", players);
                 }
                 _ if words[0].to_lowercase().starts_with("top") => {
                     let number_part = &words[0][3..];
@@ -400,6 +435,22 @@ fn main() {
             }
         }
     }
+}
+
+
+fn parse_string(input: &str) -> Vec<&str> {
+    let re = Regex::new(r"'([^']*)'|\S+").unwrap();
+    let mut result = Vec::new();
+
+    for cap in re.captures_iter(input) {
+        if let Some(matched) = cap.get(1) {
+            result.push(matched.as_str());
+        } else {
+            result.push(cap.get(0).unwrap().as_str());
+        }
+    }
+
+    result
 }
 
 fn read_csv<P, F, T>(filename: P, mut func: F) -> Result<(), Box<dyn Error>>
