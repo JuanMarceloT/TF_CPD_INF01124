@@ -6,6 +6,7 @@ use std::io::BufReader;
 use std::path::Path;
 use std::time::{Duration, Instant};
 use std::cmp::Ordering;
+use prettytable::{Table, Row, Cell};
 
 mod hash_table;
 mod trie;
@@ -151,6 +152,16 @@ fn get_player_start_with(prefix: &str, trie: &mut trie::Trie, play : &mut  hash_
     });
 
     //println!("{:?}", ratings);
+    let mut table = Table::new();
+
+    table.add_row(Row::new(vec![
+        Cell::new("sofifa_id"),
+        Cell::new("short_name"),
+        Cell::new("long_name"),
+        Cell::new("player_positions"),
+        Cell::new("rating"),
+        Cell::new("count"),
+    ]));
 
     for rating in ratings {
         if let Some(player) = play.search(&rating.sofifa_id) {
@@ -161,12 +172,21 @@ fn get_player_start_with(prefix: &str, trie: &mut trie::Trie, play : &mut  hash_
             if rating.num_ratings > 0 {
                 stars = rating.rating_sum/(rating.num_ratings as f32);
             }
-            
+            table.add_row(Row::new(vec![
+                Cell::new(&player.sofifa_id.to_string()),
+                Cell::new(&player.short_name),
+                Cell::new(&player.long_name),
+                Cell::new(&player.player_positions),
+                Cell::new(&format!("{:.6}", stars).to_string()),
+                Cell::new(&rating.num_ratings.to_string()),
+            ]));
 
-             println!("{:?} {:?} {:?} {:?} {:?} {:?}", player.sofifa_id, player.short_name, player.long_name, player.player_positions, format!("{:.6}", stars), rating.num_ratings);
+             //println!("{:?} {:?} {:?} {:?} {:?} {:?}", player.sofifa_id, player.short_name, player.long_name, player.player_positions, format!("{:.6}", stars), rating.num_ratings);
 
          }
     }
+
+    table.printstd();
 
     None
 }
@@ -174,10 +194,13 @@ fn get_player_start_with(prefix: &str, trie: &mut trie::Trie, play : &mut  hash_
 #[allow(dead_code)]
 #[allow(unused_variables)]
 fn main() {
-    let modulo = 2000;
-    let mut rating_table: hash_table::HashMap<u32, RatingPlayer> = hash_table::HashMap::new(modulo);
-    let mut players_table: hash_table::HashMap<u32, Player> = hash_table::HashMap::new(modulo);
-    let mut user_table: hash_table::HashMap<u32, User> = hash_table::HashMap::new(modulo);
+
+    let start = Instant::now();
+    
+    let modulo = 300000;
+    let mut rating_table: hash_table::HashMap<u32, RatingPlayer> = hash_table::HashMap::new(3_000);
+    let mut players_table: hash_table::HashMap<u32, Player> = hash_table::HashMap::new(3_000);
+    let mut user_table: hash_table::HashMap<u32, User> = hash_table::HashMap::new(20_000);
 
     let mut name_index = trie::Trie::new();
     let mut tag_player = trie::Trie::new();
@@ -197,7 +220,7 @@ fn main() {
         name_index.insert_with_id(&record.long_name, record.id());
     });
 
-    let x = read_csv("minirating.csv", |record: RatingFile| {
+    let x = read_csv("rating.csv", |record: RatingFile| {
         //println!("{:?}", record);
         match user_table.search(&record.user_id) {
             Some(user) => {
@@ -235,6 +258,15 @@ fn main() {
 
     // get_player_start_with("fer", &mut name_index, &mut players_table, &mut rating_table);
     
+
+    let duration = start.elapsed();
+    println!("Tempo gasto: {:?}", duration);
+    println!("player table {:?}", players_table.occupancy());
+    println!("rating table {:?}", rating_table.occupancy());
+    println!("user table {:?}", user_table.occupancy());
+    println!("player table avg {:?}", players_table.average_bucket_length());
+    println!("rating table avg {:?}", rating_table.average_bucket_length());
+    println!("user table avg {:?}", user_table.average_bucket_length());
 
     use std::io::{stdin,stdout,Write};
     let mut s=String::new();

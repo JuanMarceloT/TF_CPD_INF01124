@@ -32,6 +32,21 @@ impl<K:Eq + Identifiable, V> HashMap <K, V> {
         HashMap { buckets, modulo }
     }
 
+    pub fn occupancy(&self) -> usize {
+        self.buckets.iter().filter(|bucket| !bucket.is_empty()).count()
+    }
+
+    pub fn average_bucket_length(&self) -> f64 {
+        let non_empty_buckets: Vec<&Vec<(K, V)>> = self.buckets.iter().filter(|bucket| !bucket.is_empty()).collect();
+        
+        if non_empty_buckets.is_empty() {
+            return 0.0;
+        }
+
+        let total_length: usize = non_empty_buckets.iter().map(|bucket| bucket.len()).sum();
+        total_length as f64 / non_empty_buckets.len() as f64
+    }
+
     pub fn hash(&self, key: &K) -> usize {
         (key.id() as usize) % self.modulo
     }
