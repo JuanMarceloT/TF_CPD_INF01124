@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 use std::time::{Duration, Instant};
+use std::cmp::Ordering;
 
 mod hash_table;
 mod trie;
@@ -84,6 +85,8 @@ impl Identifiable for RatingPlayer {
     }
 }
 
+
+
 trait AddRating<T> {
     fn add_rating(&mut self, rating: T);
 }
@@ -99,6 +102,73 @@ impl AddRating<RatingPlayer> for User {
     fn add_rating(&mut self, rating: RatingPlayer) {
         self.ratings.push(rating);
     }
+}
+
+
+
+
+fn get_player_start_with(prefix: &str, trie: &mut trie::Trie, play : &mut  hash_table::HashMap<u32, Player>, rating : &mut hash_table::HashMap<u32, RatingPlayer>) -> Option<Vec<Player>>{
+
+    let mut result = Vec::<Player>::new();
+
+    let mut ratings = Vec::<RatingPlayer>::new();
+
+    for name in trie.get_words_starting_with(prefix) {
+        //println!("{:?}",  trie.get_id(&name));
+        match trie.get_id(&name) {
+            Some(n) => {
+                for i in n {
+
+                    match rating.search(&i) {
+                        Some(rate ) =>{
+                            // println!("{:?} {:?} {:?} ", (rate.rating_sum/(rate.num_ratings as f32)), rate.num_ratings as f32, rate.rating_sum);
+                            ratings.push(rate.clone());
+                        },
+                        None => {}
+                    }
+                }
+            },
+            None => {
+                println!("No match found for {}", name);
+            }
+        }
+    }
+
+    ratings.sort_by(|a, b| {
+        let avg_a = if a.num_ratings > 0 {
+            a.rating_sum / a.num_ratings as f32
+        } else {
+            0.0  // for players with no ratings
+        };
+
+        let avg_b = if b.num_ratings > 0 {
+            b.rating_sum / b.num_ratings as f32
+        } else {
+            0.0
+        };
+
+        avg_b.partial_cmp(&avg_a).unwrap_or(Ordering::Equal)
+    });
+
+    //println!("{:?}", ratings);
+
+    for rating in ratings {
+        if let Some(player) = play.search(&rating.sofifa_id) {
+             result.push(player.clone());
+
+            let mut stars = 0.0;
+
+            if rating.num_ratings > 0 {
+                stars = rating.rating_sum/(rating.num_ratings as f32);
+            }
+            
+
+             println!("{:?} {:?} {:?} {:?} {:?} {:?}", player.sofifa_id, player.short_name, player.long_name, player.player_positions, format!("{:.6}", stars), rating.num_ratings);
+
+         }
+    }
+
+    None
 }
 
 #[allow(dead_code)]
@@ -161,7 +231,27 @@ fn main() {
         //println!("{:?}", record.tag);
         tag_player.insert_with_id(&record.tag, record.sofifa_id);
     });
+
+
+    // get_player_start_with("fer", &mut name_index, &mut players_table, &mut rating_table);
     
+
+    use std::io::{stdin,stdout,Write};
+    let mut s=String::new();
+
+    while s != "n" {
+        s.clear();
+        print!("Enter a player's name: ");
+        let _=stdout().flush();
+        stdin().read_line(&mut s).expect("Did not enter a correct string");
+        if let Some('\n')=s.chars().next_back() {
+            s.pop();
+        }
+        if let Some('\r')=s.chars().next_back() {
+            s.pop();
+        }
+        get_player_start_with(&s, &mut name_index, &mut players_table, &mut rating_table);
+    }
 }
 
 fn read_csv<P, F, T>(filename: P, mut func: F) -> Result<(), Box<dyn Error>>
