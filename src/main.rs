@@ -7,6 +7,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 use std::cmp::Ordering;
 use prettytable::{Table, Row, Cell};
+use std::io::{stdin,stdout,Write};
 
 mod hash_table;
 mod trie;
@@ -220,7 +221,7 @@ fn main() {
         name_index.insert_with_id(&record.long_name, record.id());
     });
 
-    let x = read_csv("rating.csv", |record: RatingFile| {
+    let x = read_csv("minirating.csv", |record: RatingFile| {
         //println!("{:?}", record);
         match user_table.search(&record.user_id) {
             Some(user) => {
@@ -268,12 +269,11 @@ fn main() {
     println!("rating table avg {:?}", rating_table.average_bucket_length());
     println!("user table avg {:?}", user_table.average_bucket_length());
 
-    use std::io::{stdin,stdout,Write};
     let mut s=String::new();
 
     while s != "n" {
         s.clear();
-        print!("Enter a player's name: ");
+        print!("> ");
         let _=stdout().flush();
         stdin().read_line(&mut s).expect("Did not enter a correct string");
         if let Some('\n')=s.chars().next_back() {
@@ -282,7 +282,41 @@ fn main() {
         if let Some('\r')=s.chars().next_back() {
             s.pop();
         }
-        get_player_start_with(&s, &mut name_index, &mut players_table, &mut rating_table);
+        let words: Vec<&str> = s.split_whitespace().collect();
+
+        if words.len() < 2 {
+            println!("Insufficient arguments");
+        }else {
+            match (words[0].to_lowercase()).as_str()
+            {
+                "player" => {
+                    let arg = remove_outer_quotes(&words[1..words.len()].join(" "));
+                    // println!("{}", arg);
+                    get_player_start_with(&arg, &mut name_index, &mut players_table, &mut rating_table);
+                    },
+                "user" => {
+                    println!("{}", words[1]);
+                },
+                "tags" => {
+                    for tag in 1..words.len(){
+                        println!("{}", remove_outer_quotes(words[tag]));
+                    }
+                },
+                _ if words[0].to_lowercase().starts_with("top") => {
+                    let number_part = &words[0][3..];
+                    match number_part.parse::<u32>() {
+                        Ok(number) => {
+                            println!("Top number: {}", number)
+                        },
+                        Err(_) => println!("Invalid top number"),
+                    }
+                    println!("{}", remove_outer_quotes(words[1]));
+                },
+                _ => println!("Invalid"),
+        
+            }
+        }
+
     }
 }
 
@@ -315,3 +349,9 @@ where
     //println!("Tempo gasto: {:?}", duration);
     duration
 }
+
+
+fn remove_outer_quotes(s: &str) -> String {
+    s.trim_matches(|c| c == '"' || c == '\'').to_string()
+}
+
