@@ -198,6 +198,7 @@ fn main() {
 
     let mut name_index = trie::Trie::new();
     let mut tag_player = trie::Trie::new();
+    let mut position_player = trie::Trie::new();
 
     let x = read_csv("players.csv", |record: Player| {
         //println!("{:?}", record);
@@ -211,6 +212,27 @@ fn main() {
 
         rating_table.insert(record.sofifa_id, temp);
         name_index.insert_with_id(&record.long_name, record.id());
+        // position_player.insert_with_id(&record.player_positions, record.id());
+        let all_positons : Vec<String> = record.player_positions.split(",")
+            .map(|s| s.trim())  // Remove leading and trailing whitespace
+            .map(|s| s.replace(" ", "")) // Remove spaces within the strings
+            .collect();
+
+        for positions in all_positons {
+            position_player.insert_with_id(&positions, record.id());
+        }
+
+        // if record.sofifa_id == 158023 || record.sofifa_id == 176580 {
+        //     println!("{} is {}\n", record.short_name, record.sofifa_id);
+        //     let sp : Vec<String> = record.player_positions.split(",")
+        //     .map(|s| s.trim())  // Remove leading and trailing whitespace
+        //     .map(|s| s.replace(" ", "")) // Remove spaces within the strings
+        //     .collect();
+        //     for s in sp {
+        //         println!("{:?}", s);
+        //         println!("{:?}", position_player.get_id(&s));
+        //     }
+        // }
     });
 
     let x = read_csv("rating.csv", |record: RatingFile| {
@@ -472,7 +494,7 @@ fn main() {
                                 Cell::new(&player_infos.short_name),
                                 Cell::new(&player_infos.long_name),
                                 Cell::new(&global_rating.to_string()),
-                                Cell::new(&rating.to_string()),
+                                Cell::new(&format!("{:.6}", rating).to_string()),
                                 Cell::new(&global_rating_info.num_ratings.to_string()),
                             ]));
                     }
@@ -481,16 +503,110 @@ fn main() {
                 }
                 _ if words[0].to_lowercase().starts_with("top") => {
                     let number_part = &words[0][3..];
+
+                    let mut top_num = 0;
+
                     match number_part.parse::<u32>() {
                         Ok(number) => {
-                            println!("Top number: {}", number)
+                            // println!("Top number: {}", number);
+                            top_num = number;
                         }
                         Err(_) => println!("Invalid top number"),
                     }
-                    println!("{}", remove_outer_quotes(words[1]));
+                    // println!("{}", remove_outer_quotes(words[1]));
+
+                    let position = remove_outer_quotes(words[1]);
+                    let players_in_position = position_player.get_id(&position);
+
+                    let mut players_position_ratings = Vec::new();
+
+
+
+                    match players_in_position {
+                        Some(player_position) => {
+                            for player in player_position {
+                                    // let player_infos = players_table.search(&player).unwrap();
+                                    let rating = rating_table.search_non_mut(&player).unwrap();
+                                    if rating.num_ratings >= 1000 {
+                                        // println!("{:?}", player);
+                                        players_position_ratings.push(rating); 
+                                    }
+                                
+                            }
+                        },
+                        None => {
+                            println!("No players in position {}", position);
+                            return;
+                        }
+                    }
+
+                    players_position_ratings.sort_by(|a, b| {
+                        let avg_a = if a.num_ratings > 0 {
+                            a.rating_sum / a.num_ratings as f32
+                        } else {
+                            0.0 // for players with no ratings
+                        };
+
+                        let avg_b = if b.num_ratings > 0 {
+                            b.rating_sum / b.num_ratings as f32
+                        } else {
+                            0.0
+                        };
+
+                        avg_b.partial_cmp(&avg_a).unwrap_or(Ordering::Equal)
+                    });
+
+                    let mut table = Table::new();
+
+                    table.add_row(Row::new(vec![
+                        Cell::new("sofifa_id"),
+                        Cell::new("short_name"),
+                        Cell::new("long_name"),
+                        Cell::new("Player_position"),
+                        Cell::new("nationality"),
+                        Cell::new("club_name"),
+                        Cell::new("league_name"),
+                        Cell::new("rating"),
+                        Cell::new("count"),
+                    ]));
+
+                    for final_players in 0..top_num {
+                        // println!("{:?}\n", players_position_ratings[final_players as usize]);
+
+                        let ratings = players_position_ratings[final_players as usize];
+
+                        let temp_player = players_table.search_non_mut(&ratings.sofifa_id);
+
+                        let rating_global = ratings.rating_sum / ratings.num_ratings as f32;
+
+                        match temp_player {
+                            Some(player_infos) => {
+                                // println!("{:?}", player_infos);
+                                table.add_row(Row::new(vec![
+                                    Cell::new(&player_infos.sofifa_id.to_string()),
+                                    Cell::new(&player_infos.short_name),
+                                    Cell::new(&player_infos.long_name),
+                                    Cell::new(&player_infos.player_positions),
+                                    Cell::new(&player_infos.nationality),
+                                    Cell::new(&player_infos.club_name),
+                                    Cell::new(&player_infos.league_name),
+                                    Cell::new(&format!("{:.6}", rating_global).to_string()),
+                                    Cell::new(&ratings.num_ratings.to_string()),
+                                ]));
+                        
+                            }
+                            None => {
+                                // println!("No player found with id {}", players_position_ratings[final_players as usize].sofifa_id);
+                            }
+                        }
+                    }
+                    table.printstd();
+                    
                 }
                 _ => println!("Invalid"),
             }
+
+            
         }
     }
 }
