@@ -213,7 +213,7 @@ fn main() {
         name_index.insert_with_id(&record.long_name, record.id());
     });
 
-    let x = read_csv("test_rating.csv", |record: RatingFile| {
+    let x = read_csv("rating.csv", |record: RatingFile| {
         // println!("{:?}", record);
         match user_table.search(&record.user_id) {
             Some(user) => {
@@ -419,7 +419,65 @@ fn main() {
                             break;
                         }
                     }
-                    println!("{:?}", players);
+
+                    let mut table = Table::new();
+
+                    table.add_row(Row::new(vec![
+                        Cell::new("sofifa_id"),
+                        Cell::new("short_name"),
+                        Cell::new("long_name"),
+                        Cell::new("global_rating"),
+                        Cell::new("rating"),
+                        Cell::new("count"),
+                    ]));
+
+                    let mut user_rating = Vec::new();
+
+                    for player in players {
+                        if let Some(n) = rating_table.search_non_mut(&player) { 
+                            user_rating.push(n); 
+                        }
+                    }
+
+                    user_rating.sort_by(|a, b| {
+                        let avg_a = if a.num_ratings > 0 {
+                            a.rating_sum / a.num_ratings as f32
+                        } else {
+                            0.0 // for players with no ratings
+                        };
+
+                        let avg_b = if b.num_ratings > 0 {
+                            b.rating_sum / b.num_ratings as f32
+                        } else {
+                            0.0
+                        };
+
+                        avg_b.partial_cmp(&avg_a).unwrap_or(Ordering::Equal)
+                    });
+
+
+                    for player in user_rating {
+                            let player_infos = players_table.search(&player.sofifa_id).unwrap();
+
+                            let rating = player.rating_sum / player.num_ratings as f32;
+
+                            let global_rating_info =
+                                rating_table.search_non_mut(&player.sofifa_id).unwrap();
+
+                            let global_rating = global_rating_info.rating_sum
+                                / global_rating_info.num_ratings as f32;
+
+                            table.add_row(Row::new(vec![
+                                Cell::new(&player_infos.sofifa_id.to_string()),
+                                Cell::new(&player_infos.short_name),
+                                Cell::new(&player_infos.long_name),
+                                Cell::new(&global_rating.to_string()),
+                                Cell::new(&rating.to_string()),
+                                Cell::new(&global_rating_info.num_ratings.to_string()),
+                            ]));
+                    }
+                    table.printstd();
+                    // println!("{:?}", players);
                 }
                 _ if words[0].to_lowercase().starts_with("top") => {
                     let number_part = &words[0][3..];

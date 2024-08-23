@@ -69,5 +69,19 @@ impl<K:Eq + Identifiable, V> HashMap <K, V> {
         None
     }
 
+
+    pub fn search_non_mut(&self, key: &K) -> Option<&V>
+    where
+        K: Eq,
+    {
+        let bucket_index = self.hash(key);
+        for (existing_key, existing_value) in &self.buckets[bucket_index] {
+            if existing_key == key {
+                return Some(existing_value);
+            }
+        }
+        None
+    }
+
 }
 
